@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Voice Caller — Dub Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #17140f;
+      --paper: #f3efe6;
+      --sand: #e7dfd0;
+      --amber: #d97706;
+      --amber-deep: #b45309;
+      --line: rgba(23, 20, 15, 0.14);
+      --muted: rgba(23, 20, 15, 0.62);
+      --ok: #3f6f4a;
+      --bad: #9b2c2c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 700px at 10% -10%, #fff8e8 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #f0e2c4 0%, transparent 45%),
+        linear-gradient(180deg, var(--paper), #ebe4d6 100%);
+    }
+    .shell {
+      width: min(1080px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 1.5rem 0 4rem;
+    }
+    .hero {
+      min-height: calc(100vh - 3rem);
+      display: grid;
+      align-content: center;
+      gap: 1.25rem;
+      padding: 2rem 0 3rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      font-family: Syne, system-ui, sans-serif;
+      font-weight: 800;
+      font-size: clamp(2.8rem, 8vw, 5.4rem);
+      letter-spacing: -0.04em;
+      line-height: 0.92;
+      margin: 0;
+    }
+    .brand span { color: var(--amber-deep); }
+    .lede {
+      max-width: 34rem;
+      font-size: 1.05rem;
+      line-height: 1.55;
+      color: var(--muted);
+      margin: 0;
+    }
+    .drop {
+      margin-top: 0.75rem;
+      border: 1.5px dashed rgba(23, 20, 15, 0.35);
+      background: rgba(255, 255, 255, 0.35);
+      padding: 2rem 1.25rem;
+      display: grid;
+      gap: 0.75rem;
+      justify-items: start;
+      transition: border-color 0.2s, background 0.2s, transform 0.2s;
+    }
+    .drop.drag {
+      border-color: var(--amber-deep);
+      background: rgba(217, 119, 6, 0.08);
+      transform: translateY(-2px);
+    }
+    .drop h2 {
+      font-family: Syne, sans-serif;
+      font-size: 1.35rem;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+    .hint { margin: 0; color: var(--muted); font-size: 0.92rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; }
+    button, .btn {
+      font: inherit;
+      border: 0;
+      cursor: pointer;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 0.75rem 1.1rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    button.secondary, .btn.secondary {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--ink);
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    input[type="file"] { display: none; }
+    .panel {
+      display: none;
+      padding: 2rem 0 0;
+      gap: 1.25rem;
+    }
+    .panel.active { display: grid; }
+    .status {
+      font-family: Syne, sans-serif;
+      font-size: 1.5rem;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+    .bar {
+      height: 8px;
+      background: var(--sand);
+      overflow: hidden;
+    }
+    .bar > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--amber), var(--amber-deep));
+      transition: width 0.35s ease;
+    }
+    .meta { color: var(--muted); margin: 0; font-size: 0.9rem; }
+    .langs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .langs label {
+      border: 1px solid var(--line);
+      padding: 0.55rem 0.75rem;
+      background: rgba(255,255,255,0.4);
+      cursor: pointer;
+    }
+    .langs input { margin-right: 0.35rem; }
+    .sheet {
+      border-top: 1px solid var(--line);
+      max-height: 48vh;
+      overflow: auto;
+    }
+    .cue {
+      display: grid;
+      grid-template-columns: 7.5rem 1fr;
+      gap: 0.75rem;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.9rem;
+    }
+    .cue time { color: var(--amber-deep); }
+    .cue .meta { color: var(--muted); font-size: 0.78rem; display: block; margin-top: 0.15rem; }
+    .cue .tr { color: var(--ok); margin-top: 0.25rem; }
+    .err { color: var(--bad); margin: 0; }
+    @media (max-width: 720px) {
+      .cue { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero" id="hero">
+      <p class="brand">Voice <span>Caller</span></p>
+      <p class="lede">
+        Студия дубляжа без лимита Telegram Bot API.
+        Загрузите ролик целиком — клон голоса из видео, перевод в тайминг, скачивание MP4 + SRT.
+      </p>
+      <div class="drop" id="drop">
+        <h2>Перетащите видео сюда</h2>
+        <p class="hint" id="limitHint">Лимит загрузки подтянется с сервера…</p>
+        <div class="row">
+          <button type="button" id="pickBtn">Выбрать файл</button>
+          <span class="hint" id="fileName"></span>
+        </div>
+        <input id="file" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v" />
+      </div>
+    </section>
+
+    <section class="panel" id="work">
+      <h2 class="status" id="statusTitle">Разбор…</h2>
+      <div class="bar"><i id="barFill"></i></div>
+      <p class="meta" id="statusMeta"></p>
+      <p class="err" id="errorBox" hidden></p>
+
+      <div id="langBlock" hidden>
+        <p class="meta">Язык дубляжа</p>
+        <div class="langs" id="langs"></div>
+        <div class="row" style="margin-top:0.75rem">
+          <button type="button" id="dubBtn">Сделать дубляж</button>
+        </div>
+      </div>
+
+      <div class="sheet" id="sheet"></div>
+
+      <div class="row" id="downloads" hidden>
+        <button type="button" class="btn" id="dlVideo">Скачать MP4</button>
+        <button type="button" class="btn secondary" id="dlSrt">Скачать SRT</button>
+        <button type="button" class="secondary" id="againBtn">Новое видео</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = { jobId: null, poll: null, languages: [], lang: "en" };
+
+    async function api(path, opts) {
+      const res = await fetch(path, opts);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || res.statusText || "Ошибка запроса");
+      }
+      return data;
+    }
+
+    function showWork() {
+      $("hero").style.display = "none";
+      $("work").classList.add("active");
+    }
+
+    function resetUI() {
+      clearInterval(state.poll);
+      state.jobId = null;
+      $("hero").style.display = "";
+      $("work").classList.remove("active");
+      $("file").value = "";
+      $("fileName").textContent = "";
+      $("errorBox").hidden = true;
+      $("langBlock").hidden = true;
+      $("downloads").hidden = true;
+      $("sheet").innerHTML = "";
+      $("barFill").style.width = "0%";
+    }
+
+    function renderJob(job) {
+      $("statusTitle").textContent = job.message || job.status;
+      $("statusMeta").textContent = [
+        job.duration_sec ? `ролик ${job.duration_sec.toFixed(0)}с` : null,
+        job.segment_count ? `${job.segment_count} фраз` : null,
+        job.speech_sec ? `${job.speech_sec.toFixed(1)}с речи` : null,
+        job.clone_sec ? `клон ${job.clone_sec.toFixed(1)}с` : null,
+        job.progress?.total ? `${job.progress.done}/${job.progress.total}` : null,
+      ].filter(Boolean).join(" · ");
+
+      if (job.progress?.total > 0) {
+        const pct = Math.max(2, Math.round(100 * job.progress.done / job.progress.total));
+        $("barFill").style.width = (job.status === "done" ? 100 : pct) + "%";
+      } else if (job.status === "analyzing" || job.status === "translating") {
+        $("barFill").style.width = "18%";
+      } else if (job.status === "ready") {
+        $("barFill").style.width = "40%";
+      } else if (job.status === "done") {
+        $("barFill").style.width = "100%";
+      }
+
+      if (job.error) {
+        $("errorBox").hidden = false;
+        $("errorBox").textContent = job.error;
+      } else {
+        $("errorBox").hidden = true;
+      }
+
+      $("langBlock").hidden = !(job.status === "ready" || job.status === "done" || job.status === "error");
+      $("dubBtn").disabled = !(job.status === "ready" || job.status === "done" || job.status === "error");
+
+      const ready = job.status === "done" && job.has_video;
+      $("downloads").hidden = !ready;
+      $("dlVideo").disabled = !ready;
+      $("dlSrt").disabled = !(ready && job.has_srt);
+      $("dlSrt").style.display = ready && job.has_srt ? "" : "none";
+
+      if (job.segments && job.segments.length) {
+        $("sheet").innerHTML = job.segments.map((s) => {
+          const bits = [];
+          if (s.rate && Math.abs(s.rate - 1) > 0.04) bits.push("×" + Number(s.rate).toFixed(2));
+          if (s.volume && Math.abs(s.volume - 1) > 0.08) bits.push(Math.round(s.volume * 100) + "%");
+          const meta = bits.length ? `<span class="meta">${bits.join(" ")}</span>` : "";
+          return `
+          <article class="cue">
+            <time>${s.start.toFixed(1)}–${s.end.toFixed(1)}${meta}</time>
+            <div>
+              <div>${escapeHtml(s.text)}</div>
+              ${s.translation ? `<div class="tr">→ ${escapeHtml(s.translation)}</div>` : ""}
+            </div>
+          </article>
+        `;
+        }).join("");
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function downloadFile(kind) {
+      if (!state.jobId) return;
+      window.location.href = `/api/jobs/${state.jobId}/${kind}`;
+    }
+
+    async function startPolling(jobId) {
+      clearInterval(state.poll);
+      state.jobId = jobId;
+      const tick = async () => {
+        try {
+          const data = await api(`/api/jobs/${jobId}`);
+          renderJob(data.job);
+          if (["analyzing", "translating", "rendering", "queued"].includes(data.job.status)) {
+            return;
+          }
+          if (data.job.status === "done" || data.job.status === "error") {
+            // полный статус с сегментами/переводом
+            const full = await api(`/api/jobs/${jobId}?lite=0`);
+            renderJob(full.job);
+            clearInterval(state.poll);
+          }
+        } catch (e) {
+          $("errorBox").hidden = false;
+          $("errorBox").textContent = e.message;
+        }
+      };
+      await tick();
+      state.poll = setInterval(tick, 1500);
+    }
+
+    async function uploadFile(file) {
+      if (!file) return;
+      showWork();
+      $("statusTitle").textContent = "Загрузка…";
+      $("fileName").textContent = file.name;
+      $("barFill").style.width = "8%";
+      const body = new FormData();
+      body.append("video", file, file.name);
+      const data = await api("/api/jobs", { method: "POST", body });
+      renderJob(data.job);
+      await startPolling(data.job.id);
+    }
+
+    function bindDrop() {
+      const drop = $("drop");
+      const file = $("file");
+      $("pickBtn").onclick = () => file.click();
+      file.onchange = () => uploadFile(file.files[0]).catch((e) => {
+        showWork();
+        $("errorBox").hidden = false;
+        $("errorBox").textContent = e.message;
+      });
+      ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => {
+        e.preventDefault();
+        drop.classList.add("drag");
+      }));
+      ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => {
+        e.preventDefault();
+        drop.classList.remove("drag");
+      }));
+      drop.addEventListener("drop", (e) => {
+        const f = e.dataTransfer.files?.[0];
+        uploadFile(f).catch((err) => {
+          showWork();
+          $("errorBox").hidden = false;
+          $("errorBox").textContent = err.message;
+        });
+      });
+    }
+
+    async function boot() {
+      bindDrop();
+      $("againBtn").onclick = resetUI;
+      $("dlVideo").onclick = () => downloadFile("video");
+      $("dlSrt").onclick = () => downloadFile("srt");
+      $("dubBtn").onclick = async () => {
+        if (!state.jobId) return;
+        $("dubBtn").disabled = true;
+        try {
+          const data = await api(`/api/jobs/${state.jobId}/dub`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ language: state.lang }),
+          });
+          renderJob(data.job);
+          await startPolling(state.jobId);
+        } catch (e) {
+          $("errorBox").hidden = false;
+          $("errorBox").textContent = e.message;
+          $("dubBtn").disabled = false;
+        }
+      };
+
+      const health = await api("/api/health");
+      $("limitHint").textContent =
+        `До ${health.max_upload_mb} МБ здесь · в Telegram Bot API обычно ≤ ${health.telegram_limit_mb} МБ`;
+
+      const langs = await api("/api/languages");
+      state.languages = langs.languages || [];
+      $("langs").innerHTML = state.languages.map((l) => `
+        <label>
+          <input type="radio" name="lang" value="${l.code}" ${l.code === "en" ? "checked" : ""} />
+          ${escapeHtml(l.label)}
+        </label>
+      `).join("");
+      $("langs").addEventListener("change", (e) => {
+        if (e.target.name === "lang") state.lang = e.target.value;
+      });
+    }
+
+    boot().catch((e) => {
+      $("limitHint").textContent = e.message;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+services:
+  voice-caller:
+    build: .
+    container_name: voice-caller
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+      - model-cache:/cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  model-cache:
